@@ -22,7 +22,6 @@ int main(int argsc, char *argsv[])
 			}
 			printf("\n");			
 		}
-	}
-	
+	}	
 	return 0;
 }

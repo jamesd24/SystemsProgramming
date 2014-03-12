@@ -9,3 +9,4 @@ cat: cat.c
 clean:
 	-rm -f hello
 	-rm -f cat
+
