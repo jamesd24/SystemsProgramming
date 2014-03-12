@@ -1,4 +1,4 @@
-all: clean hello cat
+all: hello cat
 
 hello: hello.c
 	gcc -Wall hello.c -o hello
