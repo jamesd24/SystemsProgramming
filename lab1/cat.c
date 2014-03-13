@@ -10,9 +10,8 @@ int main(int argsc, char *argsv[])
 		do		
 		{
 			c = fgetc(stdin);
-			fputc(c, stdout);	
+			fputc(c, stdout);
 		} while(c != EOF);
-		
 	}
 	else
 	{
@@ -24,6 +23,7 @@ int main(int argsc, char *argsv[])
 			if( (file = fopen(argsv[i], "r")) == NULL )
 			{
 				fputs(argsv[i], stdout);
+				fputs(": No such file or directory\n", stdout);
 			}
 			else
 			{				
