@@ -3,22 +3,20 @@
 
 int main(int argsc, char *argsv[])
 {
+	int c;
+	
 	if(argsc == 1)
-	{
-		int c;
-		while(1)
+	{				
+		do		
 		{
-			while( (c = fgetc(stdin)) != 10)
-			{
-				fputc(c, stdout);	
-			}
-			fputc(10, stdout);
-		}
+			c = fgetc(stdin);
+			fputc(c, stdout);	
+		} while(c != EOF);
+		
 	}
 	else
 	{
 		int i;
-		char fcont;
 		FILE *file;
 
 		for(i = 1; i < argsc; i++)
@@ -26,17 +24,16 @@ int main(int argsc, char *argsv[])
 			if( (file = fopen(argsv[i], "r")) == NULL )
 			{
 				fputs(argsv[i], stdout);
-				fputs(" ", stdout);
 			}
 			else
-			{
-				while( (fcont = fgetc(file)) != EOF)
+			{				
+				do		
 				{
-					fputc(fcont, stdout);
-				}
+					c = fgetc(file);
+					fputc(c, stdout);	
+				} while(c != EOF);
 			}
 		}
-		printf("\n");
 	}
 	return 0;
 }
