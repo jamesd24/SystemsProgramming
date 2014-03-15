@@ -24,35 +24,35 @@ int main(int argsc, char *argsv[])
 				lineNum = 1;
 				break;
 			case '?':
-				printf("Unknown argument: %c", c);
+				error = 1;
 				break;
 		}
 	}
 	
-	if(error == 1)
+	// If there was an error in the setup then do not run
+	if(error != 1)
 	{
-		fputs("Unknown argument", stdout);
-	}
-	
-	if(argsc == 1)
-	{				
-		do		
-		{
-			c = fgetc(stdin);
-			fputc(c, stdout);
-		} while(c != EOF);
-	}
-	else
-	{		
+		if(argsc == 1)
+		{				
+			do		
+			{
+				c = fgetc(stdin);
+				fputc(c, stdout);
+			} while(c != EOF);
+		}
+		else
+		{		
 
-		if (optind < argsc)
-		{
-			for(; optind < argsc; optind++)
-			{			
-				printfile(argsv[optind]);			
+			if (optind < argsc)
+			{
+				for(; optind < argsc; optind++)
+				{			
+					printfile(argsv[optind]);			
+				}
 			}
 		}
 	}
+	
 	return 0;
 }
 
@@ -63,6 +63,12 @@ void printfile(char* input)
 {
 		FILE *file;
 		int c;
+		char *lineEnd = "";
+		
+		if(showEnd == 1)
+		{
+			lineEnd = "$";
+		}
 				
 		if( (file = fopen(input, "r")) == NULL )
 		{
@@ -71,7 +77,9 @@ void printfile(char* input)
 		}
 		else
 		{				
+			//Line number counter
 			int i = 1;
+			// Checks if the last character was EOL
 			int endOfLine = 0;
 			
 			// Put the initial line number in there
@@ -85,23 +93,21 @@ void printfile(char* input)
 			{
 				if(c == 10)
 				{
-					if(endOfLine == 1)
+					if(endOfLine == 1 && lineNum == 1)
 					{
-						i++;
-						printf("     %d  %c", i, c);
+						printf("     %d  %s%c", ++i, lineEnd, c);
 					}
 					else
 					{
 						endOfLine = 1;
-						fputc(c, stdout);
+						printf("%s%c", lineEnd, c);
 					}
 				}
 				else
 				{
 					if(lineNum == 1 && endOfLine == 1)
 					{
-						i++;
-						printf("     %d  %c", i, c);
+						printf("     %d  %c", ++i, c);
 						endOfLine=0;
 					}
 					else
@@ -109,8 +115,8 @@ void printfile(char* input)
 						fputc(c, stdout);
 					}
 				}
-			}			
-			fclose(file);			
+			}
+			fclose(file);	
 		}
 }
 
