@@ -73,7 +73,7 @@ void printfile(char* input)
 		if( (file = fopen(input, "r")) == NULL )
 		{
 			fputs(input, stdout);
-			fputs(": No such file or directory\n", stdout);
+			fputs(": No such file or directory\n", stderr);
 		}
 		else
 		{				
@@ -85,7 +85,7 @@ void printfile(char* input)
 			// Put the initial line number in there
 			if(lineNum == 1)
 			{
-				printf("     %d  ",i);
+				fprintf(stdout, "\t%d  ",i);
 			}
 
 			// Need some way to print the line number before the text
@@ -95,19 +95,19 @@ void printfile(char* input)
 				{
 					if(endOfLine == 1 && lineNum == 1)
 					{
-						printf("     %d  %s%c", ++i, lineEnd, c);
+						fprintf(stdout, "\t%d  %s%c", ++i, lineEnd, c);
 					}
 					else
 					{
 						endOfLine = 1;
-						printf("%s%c", lineEnd, c);
+						fprintf(stdout, "%s%c", lineEnd, c);
 					}
 				}
 				else
 				{
 					if(lineNum == 1 && endOfLine == 1)
 					{
-						printf("     %d  %c", ++i, c);
+						fprintf(stdout, "\t%d  %c", ++i, c);
 						endOfLine=0;
 					}
 					else

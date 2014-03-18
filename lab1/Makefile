@@ -12,4 +12,3 @@ cat:
 clean:
 	-rm -f hello
 	-rm -f cat
-	-rm -f cat.o
