@@ -7,5 +7,5 @@ cat:
 	gcc -Wall cat.c cat.h -o cat
 	
 clean:
-	-rm -f hello
-	-rm -f cat
+	rm -f hello
+	rm -f cat

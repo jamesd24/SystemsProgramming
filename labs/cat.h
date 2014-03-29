@@ -3,5 +3,7 @@
 
 void printfile(char*);
 
+void printString(int);
 
+char* stringBuilder(const char*, const char);
 #endif
