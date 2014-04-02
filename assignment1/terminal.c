@@ -3,9 +3,11 @@
 #include <getopt.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include "terminal.h"
 
-
+// size of input buffer
 #define buffer 80
 int loop = 0;
 char input[buffer];
@@ -15,42 +17,52 @@ int main()
 {
     while(loop == 0)
     {
+        // prints a couple of >> to prompt input and then gets the user intput
+        fputs(">> ", stdout);
         fgets(input, buffer, stdin);
         
         // Check if the exit command was given, limit of 4 due to buffer messing up the compare over 4 letters
         if(strncmp(input, "exit", 4) == 0)
         {
-            exit(EXIT_SUCCESS);
+            loop = 1;
         }
         else
         {
-            //char* arg[] = {"ls", "-ltr", NULL};
-            /**char* command = "ls";
-            char* arg[] = {"ls", "-ltr", NULL};
-            fprintf(stdout, "command: %s\n", command);
-            fprintf(stdout, "args 0: %s\n", arg[0]);
-            fprintf(stdout, "args 1: %s\n", arg[1]);
-            fprintf(stdout, "args 1: %s\n", arg[2]);
-            execvp(arg[0], arg);*/
+            int pid, background = 0;  
+            int length = strlen(input); 
             
-            
-            int pid;
-    
-            pid = fork();
-            
-            if(pid == -1)
+            // Check if the process should be run in the background and if so remove the ampersand and the new line and set background to 1
+            if(input[length-2] == '&')
             {
-                fputs("Forking failed", stderr);
-            }
-            else if (pid > 0)
-            {
-                waitpid(-1, NULL, 0);
+                background = 1;
+                input[length-2] ='\0';
+                input[length-1] ='\0';
             }
             else
             {
-                call_system(input);
+                background = 0;
+            }            
+                      
+            // Create a child process
+            pid = fork();         
+            
+            switch(pid)
+            {
+                // Forking returned an error
+                case -1:
+                    fprintf(stderr, "Fork failed");
+                    break;
+                // Child process
+                case 0:
+                    if(call_system(input) == 1)
+                        fprintf(stderr, "System Call failed");
+                    break;
+                // Parent process checks if the child is being run in the background or not
+                default:
+                    if(background == 0)
+                        waitpid(-1, NULL, 0);
+                    break;
             }
-                        
         }        
     }
     
@@ -58,136 +70,43 @@ int main()
 }
 
 // Builds the arguments for the command to be run
-void call_system(char *input)
+int call_system(char *input)
 {  
     char * string = input;
     
+    // Remove new line from the end of the input line
+    int length = strlen(string);   
+    if(string[length-1] == '\n')
+        string[length-1] ='\0';
+    
     char ** result  = NULL;
     char * ptr   = strtok (string, " ");
-    int n_spaces = 0, i;
-
-
-    /* split string and append tokens to 'result' */
-
+    int args = 0;
+    
+    // While more strings, increase the side of result and add the string
     while (ptr) 
     {
-        result = realloc (result, sizeof (char*) * ++n_spaces);
+        result = realloc (result, sizeof (char*) * ++args);
 
+        // If null then alloc failed
         if (result == NULL)
-            exit (-1); /* memory allocation failed */
+            return 1;
 
-        result[n_spaces-1] = ptr;
+        result[args-1] = ptr;
 
        ptr= strtok (NULL, " ");
     }
 
-    /* realloc one extra element for the last NULL */
-
-    result = realloc (result, sizeof (char*) * (n_spaces+1));
-    result[n_spaces] = 0;
-
-    /* print the resultult */
-
-    for (i = 0; i < (n_spaces+1); ++i)
-    printf ("result[%d] = %s\n", i, result[i]);
-
+    // Add on extra space for the null value
+    result = realloc (result, sizeof (char*) * (args+1));
+    result[args] = 0;
     
     execvp(result[0], result);
     
-    /* free the memory allocated */
-    free (result);
-       
+    // Free up memory
+    free(result);
+    free(string);
+    free(ptr);
     
-    
-    /**char * string = input;
-    char * argArr[128];
-    char * command;
-    char *token = strtok( string, " " );
-    int numArgs = -1;
-    int flag;
-    
-    command = token;
-    argArr[++numArgs] = token;
- 
-    while( token != NULL )
-    {
-            token = strtok( NULL, " " );
-            argArr[++numArgs] = token;
-    }
-    argArr[numArgs] = '\0';
-    
-    fprintf(stdout, "command: %s\n", command);
-    fprintf(stdout, "args 0: %s\n", argArr[0]);
-    fprintf(stdout, "args 1: %s\n", argArr[1]);
-    
-    flag = execvp(command, argArr);
-    
-    fprintf(stdout, "Return value: %d", flag);*/
-    
-    
-    /**char *a[1];
-    int n=0, nn;
-
-    char *ds=strdup(input);
-
-    a[n]=strtok(ds, " ");
-    while(a[n] && n<4) 
-        a[++n]=strtok(NULL, " ");
-
-    for(nn=0; nn<=n; ++nn) 
-        printf("%s ", a[nn]);
-    putchar('\n');
-
-    free(ds);
-    
-    execvp(a[0], a);*/
-        
-    /**char *args[64];
-    char **next = args;
-    char *temp = strtok(input, " ");
-    while (temp != NULL)
-    {
-        *next++ = temp;
-        //printf("%s\n", temp);
-        temp = strtok(NULL, " ");
-    }
-    *next = NULL;
-
-    puts("Checking:");
-    for (next = args; *next != 0; next++)
-        puts(*next);
-
-    execvp(args[0], args);*/
-
-    /**
-    char *commandArgs;
-    char **cmdptr = commandArgs;
-    char *token = strtok(input, " ");
-    int numArgs = 0;
-    
-    
-    commandArgs = malloc(numArgs+1);
-    token = strtok(input, " ");
-    commandArgs[numArgs] = token;
-    //strcpy(commandArgs[numArgs], token);
-    token = strtok(NULL, " ");
-    
-    
-    while (token != NULL)
-    {           
-        //commandArgs = malloc(numArgs+1); 
-        commandArgs = realloc(commandArgs, numArgs+1);
-        *cmdptr++ = token;    
-        token = strtok(NULL, " ");
-        numArgs++;
-    }
-    
-    //fprintf(stdout, "command: %s\n", command);
-    //fprintf(stdout, "args 0: %s\n", commandArgs[0]);
-    //fprintf(stdout, "args 1: %s\n", commandArgs[1]);
-    
-    //fprintf(stdout, "Command: %s", command);
-    execvp(commandArgs[0], commandArgs);
-    //system(command);*/
-    
+    return 0;
 }
