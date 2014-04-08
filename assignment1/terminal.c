@@ -14,6 +14,7 @@ int loop = 0;
 char input[buffer];
 int pid, background = 0; 
 int length;
+char* token;
 
 int main()
 {
@@ -27,6 +28,9 @@ int main()
         fputs(">> ", stdout);
         fgets(input, buffer, stdin);
         
+        token = strtok(input, ";");
+        
+        
         // Check if the exit command was given, limit of 4 due to buffer messing up the compare over 4 letters
         if(strncmp(input, "exit", 4) == 0)
         {
@@ -34,8 +38,7 @@ int main()
         }
         else
         {             
-            length = strlen(input); 
-            
+            length = strlen(input);
             // Check if the process should be run in the background and if so remove the ampersand and the new line and set background to 1
             if(input[length-2] == '&')
             {
@@ -64,10 +67,9 @@ int main()
                 }
             }
             else
-            {        
+            {
                 // Create a child process
-                pid = fork();         
-                
+                pid = fork();
                 switch(pid)
                 {
                     // Forking returned an error
@@ -102,6 +104,7 @@ int changeDir(char* input)
         if(string[strlen(string)-1] == '\n')                    
             string[strlen(string)-1] = '\0';
         
+    free(string);
     return chdir(string);
 }
 
@@ -116,105 +119,110 @@ int call_system(char *input)
     if(string[length-1] == '\n')
         string[length-1] ='\0';
     
-    char ** result  = NULL;
+    char ** argArray  = NULL;
     char * ptr   = strtok (string, " ");
     char* command;
     int args = 1;
     int catToken = 0;
-    char* tempToken;
+    char* tempToken = NULL;
     int i = 1;
+    char* escapeCheck = NULL; 
+    char* result;
+    int resultPos = 0;
+    
     
     // While more strings, increase the side of result and add the string
     while (ptr) 
-    {
-        result = realloc (result, sizeof (char*) * args);
+    {        
+        argArray = realloc (argArray, sizeof (char*) * args);
 
         // If null then alloc failed
-        if (result == NULL)
+        if (argArray == NULL)
             return 1;
-
-        // 34 is the ascii for "
-        if(ptr[0] == 34)
-        {            
-            catToken = 1;  
-            length = strlen(ptr);
             
+       // If the first character is a " remove it
+       if(ptr[0] == 34)
+       {           
+            catToken = 1;
+            length = strlen(ptr);
+
             tempToken = malloc(sizeof(char) * length);
             // Removes the " from the start of the string
             for(i = 1; i < length; i++)
             {
                 tempToken[i-1] = ptr[i];
             }
-            
-            length = strlen(tempToken);
-            
-            // If " is the last character as well then this is simply a full command
-            if(tempToken[length-1] == 34)
+            // Check the ends for quotes, making sure not to remove them if they are escaped
+            if( tempToken[strlen(tempToken)-1] == 34 && tempToken[strlen(tempToken)-2] != 93 )
             {
-                tempToken[length-1] = '\0';
-                
-                if(args == 1)
-                {
-                    command  = tempToken;
-                    result[args-1] = basename(ptr);
-                }
-                else
-                {
-                    result[args-1] = ptr;
-                }
-            }
-        }
-        else if(catToken == 1)
-        {
-            length = strlen(ptr);
-            // If the last character is " then this is the end of the string
-            if(ptr[length-1] == 34)
-            {
-                ptr[length-1] = '\0';
-                strcat(tempToken, " ");
-                strcat(tempToken, ptr);
-                                
-                if(args == 1)
-                {
-                    command  = tempToken;
-                    result[args-1] = basename(ptr);
-                }
-                else
-                {
-                    result[args-1] = ptr;
-                }
-                
+                tempToken[strlen(tempToken)-1] = '\0';
                 catToken = 0;
             }
-            else
+       }       
+       // If we are concatenating a command then check if it ends with an unescaped " and remove it then add the ptr to the command
+       else if(catToken == 1)
+       {
+            // Add the new token onto the old one
+            if(ptr[strlen(ptr)-1] == 34 && ptr[strlen(ptr)-2] != 93)
             {
-                strcat(tempToken, " ");
-                strcat(tempToken, ptr);          
-            }                      
-        }
-        else
-        {
+                ptr[strlen(ptr)-1] = '\0';
+                catToken = 0;
+            }
+            strcat(tempToken, " ");
+            strcat(tempToken, ptr);
+       }             
+       // If we have a tempToken then that is the string we are going to check for escape characters, if not then check the raw ptr token
+       if(tempToken != NULL)
+       {
+           escapeCheck = malloc(sizeof(char) * strlen(tempToken));
+           strcpy(escapeCheck, tempToken);
+       }
+       else
+       {
+           escapeCheck = malloc(sizeof(char) * strlen(ptr));
+           strcpy(escapeCheck, ptr);
+       }
+       
+       // Create a string to hold the result of eliminated escape characters
+       result = malloc(sizeof(char) * strlen(escapeCheck));
+       resultPos = 0;
+        
+       if(result == NULL)
+           fputs("Error allocation memory", stderr);
+       
+       // Remove any \ that are escaping a "
+       for(i = 0; i < strlen(escapeCheck); i++)
+       {        
+           if( !(escapeCheck[i] == 92 && escapeCheck[i+1] == 34) )
+           {
+               result[resultPos] = escapeCheck[i];
+               resultPos++;
+           }
+       }       
+       
+       // Finally put the completed command into the correct location
+       if(catToken == 0)
+       {
             if(args == 1)
             {
-                command = ptr;
-                result[args-1] = basename(ptr);
+                command  = result;
+                argArray[args-1] = basename(result);
             }
             else
             {
-                result[args-1] = ptr;
+                argArray[args-1] = result;
             }
-            
             args++;
-        }             
-
-       ptr = strtok (NULL, " ");
+       }
+       
+       ptr = strtok (NULL, " ");     
     }
 
     // Add on extra space for the null value
-    result = realloc (result, sizeof (char*) * (args+1));
-    result[args] = '\0';
-    
-    execvp(command, result);
+    argArray = realloc (argArray, sizeof (char*) * (args+1));
+    argArray[args] = '\0';    
+        
+    execvp(command, argArray);
         
     // Free up memory
     free(result);
@@ -223,3 +231,57 @@ int call_system(char *input)
     
     return 0;
 }
+
+/**char* removeQuotes(char* input, int* catToken, char **tempToken)
+{
+    char* string = malloc(sizeof(char) * strlen(input));
+    strcpy(string, input);
+    char* result;
+    int i;
+    
+    // 34 is the ascii for "
+    if(string[0] == 34)
+    {            
+        *catToken = 1;
+        
+        length = strlen(string);
+        
+        result = malloc(sizeof(char) * length);
+        // Removes the " from the start of the string
+        for(i = 1; i < length; i++)
+        {
+            result[i-1] = string[i];
+        }
+        
+        length = strlen(result);
+        
+        // If " is the last character as well then this is simply a full command
+        if(result[length-1] == 34)
+        {
+            result[length-1] = '\0';
+        }
+    }
+    else if(*catToken == 1)
+    {
+        length = strlen(string);
+        // If the last character is " then this is the end of the string
+        if(string[length-1] == 34)
+        {
+            string[length-1] = '\0';
+            strcat(result, " ");
+            strcat(result, string);
+            
+            *catToken = 0;
+        }
+        else
+        {
+            strcat(result, " ");
+            strcat(result, string);          
+        }                      
+    }
+    
+    *tempToken = malloc(sizeof(char) * strlen(result));
+    
+    free(string);
+    return result;
+}*/
