@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "terminal.h"
+#include <libgen.h>
 
 // size of input buffer
 #define buffer 80
@@ -17,6 +18,10 @@ int main()
 {
     while(loop == 0)
     {
+        // Gets the current working directory for the application and prints it out
+        char currDir[256];
+        getcwd(currDir, 255);
+        fprintf(stdout, "%s\n", currDir);
         // prints a couple of >> to prompt input and then gets the user intput
         fputs(">> ", stdout);
         fgets(input, buffer, stdin);
@@ -43,25 +48,44 @@ int main()
                 background = 0;
             }            
                       
-            // Create a child process
-            pid = fork();         
+            /** Find what the command was */
+            char* checkString = malloc ((sizeof (char*) * strlen(input)) +1 );;
             
-            switch(pid)
+            strcpy(checkString, input);
+            char* token = strtok(checkString, " ");
+            
+            // If we're being told to change directory then we don't need to run in a new process
+            if(strncmp(token, "cd", 2) == 0)
             {
-                // Forking returned an error
-                case -1:
-                    fprintf(stderr, "Fork failed");
-                    break;
-                // Child process
-                case 0:
-                    if(call_system(input) == 1)
-                        fprintf(stderr, "System Call failed");
-                    break;
-                // Parent process checks if the child is being run in the background or not
-                default:
-                    if(background == 0)
-                        waitpid(-1, NULL, 0);
-                    break;
+                token = strtok (NULL, " ");                
+                if(token != NULL)
+                    if(token[strlen(token)-1] == '\n')                    
+                        token[strlen(token)-1] = '\0';
+                    
+                chdir(token);
+            }
+            else
+            {        
+                // Create a child process
+                pid = fork();         
+                
+                switch(pid)
+                {
+                    // Forking returned an error
+                    case -1:
+                        fprintf(stderr, "Fork failed");
+                        break;
+                    // Child process
+                    case 0:
+                        if(call_system(input) == 1)
+                            fprintf(stderr, "System Call failed");
+                        break;
+                    // Parent process checks if the child is being run in the background or not
+                    default:
+                        if(background == 0)
+                            waitpid(-1, NULL, 0);
+                        break;
+                }
             }
         }        
     }
@@ -72,7 +96,8 @@ int main()
 // Builds the arguments for the command to be run
 int call_system(char *input)
 {  
-    char * string = input;
+    char * string = malloc((sizeof(char) * strlen(input)) +1);
+    strcpy(string, input);
     
     // Remove new line from the end of the input line
     int length = strlen(string);   
@@ -81,6 +106,7 @@ int call_system(char *input)
     
     char ** result  = NULL;
     char * ptr   = strtok (string, " ");
+    char* command;
     int args = 0;
     
     // While more strings, increase the side of result and add the string
@@ -92,16 +118,26 @@ int call_system(char *input)
         if (result == NULL)
             return 1;
 
-        result[args-1] = ptr;
+        if(args == 1)
+        {
+            command = ptr;
+            result[args-1] = basename(ptr);
+        }
+        else
+        {
+            result[args-1] = ptr;
+        }
+            
 
-       ptr= strtok (NULL, " ");
+       ptr = strtok (NULL, " ");
     }
 
     // Add on extra space for the null value
     result = realloc (result, sizeof (char*) * (args+1));
     result[args] = 0;
     
-    execvp(result[0], result);
+    execvp(command, result);
+    
     
     // Free up memory
     free(result);
