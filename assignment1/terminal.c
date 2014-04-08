@@ -12,7 +12,8 @@
 #define buffer 80
 int loop = 0;
 char input[buffer];
-
+int pid, background = 0; 
+int length;
 
 int main()
 {
@@ -32,9 +33,8 @@ int main()
             loop = 1;
         }
         else
-        {
-            int pid, background = 0;  
-            int length = strlen(input); 
+        {             
+            length = strlen(input); 
             
             // Check if the process should be run in the background and if so remove the ampersand and the new line and set background to 1
             if(input[length-2] == '&')
@@ -58,11 +58,10 @@ int main()
             if(strncmp(token, "cd", 2) == 0)
             {
                 token = strtok (NULL, " ");                
-                if(token != NULL)
-                    if(token[strlen(token)-1] == '\n')                    
-                        token[strlen(token)-1] = '\0';
-                    
-                chdir(token);
+                if(changeDir(token) != 0)
+                {
+                    fprintf(stderr, "Could not change directory to: %s", token);
+                }
             }
             else
             {        
@@ -93,6 +92,19 @@ int main()
     return 0;
 }
 
+// Small function used to change directories
+int changeDir(char* input)
+{
+    char* string = malloc(sizeof(char) * strlen(input));
+    strcpy(string, input);
+    
+    if(string != NULL)
+        if(string[strlen(string)-1] == '\n')                    
+            string[strlen(string)-1] = '\0';
+        
+    return chdir(string);
+}
+
 // Builds the arguments for the command to be run
 int call_system(char *input)
 {  
@@ -107,38 +119,103 @@ int call_system(char *input)
     char ** result  = NULL;
     char * ptr   = strtok (string, " ");
     char* command;
-    int args = 0;
+    int args = 1;
+    int catToken = 0;
+    char* tempToken;
+    int i = 1;
     
     // While more strings, increase the side of result and add the string
     while (ptr) 
     {
-        result = realloc (result, sizeof (char*) * ++args);
+        result = realloc (result, sizeof (char*) * args);
 
         // If null then alloc failed
         if (result == NULL)
             return 1;
 
-        if(args == 1)
+        // 34 is the ascii for "
+        if(ptr[0] == 34)
+        {            
+            catToken = 1;  
+            length = strlen(ptr);
+            
+            tempToken = malloc(sizeof(char) * length);
+            // Removes the " from the start of the string
+            for(i = 1; i < length; i++)
+            {
+                tempToken[i-1] = ptr[i];
+            }
+            
+            length = strlen(tempToken);
+            
+            // If " is the last character as well then this is simply a full command
+            if(tempToken[length-1] == 34)
+            {
+                tempToken[length-1] = '\0';
+                
+                if(args == 1)
+                {
+                    command  = tempToken;
+                    result[args-1] = basename(ptr);
+                }
+                else
+                {
+                    result[args-1] = ptr;
+                }
+            }
+        }
+        else if(catToken == 1)
         {
-            command = ptr;
-            result[args-1] = basename(ptr);
+            length = strlen(ptr);
+            // If the last character is " then this is the end of the string
+            if(ptr[length-1] == 34)
+            {
+                ptr[length-1] = '\0';
+                strcat(tempToken, " ");
+                strcat(tempToken, ptr);
+                                
+                if(args == 1)
+                {
+                    command  = tempToken;
+                    result[args-1] = basename(ptr);
+                }
+                else
+                {
+                    result[args-1] = ptr;
+                }
+                
+                catToken = 0;
+            }
+            else
+            {
+                strcat(tempToken, " ");
+                strcat(tempToken, ptr);          
+            }                      
         }
         else
         {
-            result[args-1] = ptr;
-        }
+            if(args == 1)
+            {
+                command = ptr;
+                result[args-1] = basename(ptr);
+            }
+            else
+            {
+                result[args-1] = ptr;
+            }
             
+            args++;
+        }             
 
        ptr = strtok (NULL, " ");
     }
 
     // Add on extra space for the null value
     result = realloc (result, sizeof (char*) * (args+1));
-    result[args] = 0;
+    result[args] = '\0';
     
     execvp(command, result);
-    
-    
+        
     // Free up memory
     free(result);
     free(string);
