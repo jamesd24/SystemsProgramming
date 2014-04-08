@@ -27,8 +27,7 @@ int main()
         char currDir[256];
         getcwd(currDir, 255);
         fprintf(stdout, "%s\n", currDir);
-        // prints a couple of >> to prompt input and then gets the user intput
-        fputs(">> ", stdout);
+        
         fgets(input, buffer, stdin);
         
         // Get a list of all the commands to be run
@@ -108,8 +107,10 @@ void parseInput(char* input)
                     break;
                 // Parent process checks if the child is being run in the background or not
                 default:
-                    if(background == 0)
+                    if(background == 1)
                         waitpid(-1, NULL, 0);
+                    else
+                        signal(SIGCHLD, SIG_IGN);
                     break;
             }
         }
@@ -125,8 +126,7 @@ int changeDir(char* input)
     if(string != NULL)
         if(string[strlen(string)-1] == '\n')                    
             string[strlen(string)-1] = '\0';
-        
-    free(string);
+    
     return chdir(string);
 }
 
