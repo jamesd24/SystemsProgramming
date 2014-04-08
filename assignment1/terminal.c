@@ -13,8 +13,11 @@
 int loop = 0;
 char input[buffer];
 int pid, background = 0; 
-int length;
-char* token;
+int length, i;
+char* cmdTok;
+char delim = ';';
+char ** cmdArray = NULL;
+int numCmd;
 
 int main()
 {
@@ -28,70 +31,89 @@ int main()
         fputs(">> ", stdout);
         fgets(input, buffer, stdin);
         
-        token = strtok(input, ";");
-        
-        
-        // Check if the exit command was given, limit of 4 due to buffer messing up the compare over 4 letters
-        if(strncmp(input, "exit", 4) == 0)
-        {
-            loop = 1;
+        // Get a list of all the commands to be run
+        cmdTok = strtok(input, &delim);
+        numCmd = 1;
+        while(cmdTok)
+        {            
+           cmdArray = realloc (cmdArray, sizeof (char*) * numCmd);
+           if(cmdTok[strlen(cmdTok)-1] == '\n')
+                cmdTok[strlen(cmdTok)-1] = '\0';
+           cmdArray[numCmd-1] = cmdTok;
+           numCmd++;            
+           cmdTok = strtok(NULL, &delim);
         }
-        else
-        {             
-            length = strlen(input);
-            // Check if the process should be run in the background and if so remove the ampersand and the new line and set background to 1
-            if(input[length-2] == '&')
-            {
-                background = 1;
-                input[length-2] ='\0';
-                input[length-1] ='\0';
-            }
-            else
-            {
-                background = 0;
-            }            
-                      
-            /** Find what the command was */
-            char* checkString = malloc ((sizeof (char*) * strlen(input)) +1 );;
-            
-            strcpy(checkString, input);
-            char* token = strtok(checkString, " ");
-            
-            // If we're being told to change directory then we don't need to run in a new process
-            if(strncmp(token, "cd", 2) == 0)
-            {
-                token = strtok (NULL, " ");                
-                if(changeDir(token) != 0)
-                {
-                    fprintf(stderr, "Could not change directory to: %s", token);
-                }
-            }
-            else
-            {
-                // Create a child process
-                pid = fork();
-                switch(pid)
-                {
-                    // Forking returned an error
-                    case -1:
-                        fprintf(stderr, "Fork failed");
-                        break;
-                    // Child process
-                    case 0:
-                        if(call_system(input) == 1)
-                            fprintf(stderr, "System Call failed");
-                        break;
-                    // Parent process checks if the child is being run in the background or not
-                    default:
-                        if(background == 0)
-                            waitpid(-1, NULL, 0);
-                        break;
-                }
-            }
-        }        
+        // Run all the commands (This didn't work for me in the one loop for some reason)
+        for(i = 0; i < numCmd-1; i++)
+        {
+            parseInput(cmdArray[i]);
+        }
     }
     
     return 0;
+}
+
+// Decides what the application will do with the input it is given
+void parseInput(char* input)
+{
+    // Check if the exit command was given, limit of 4 due to buffer messing up the compare over 4 letters
+    if(strncmp(input, "exit", 4) == 0)
+    {
+        loop = 1;
+    }
+    else
+    {             
+        length = strlen(input);
+        // Check if the process should be run in the background and if so remove the ampersand and the new line and set background to 1
+        if(input[length-2] == '&')
+        {
+            background = 1;
+            input[length-2] ='\0';
+            input[length-1] ='\0';
+        }
+        else
+        {
+            background = 0;
+        }            
+                
+        // Find what the command was
+        char* checkString = malloc ((sizeof (char*) * strlen(input)) +1 );;
+        
+        strcpy(checkString, input);
+        char* token = strtok(checkString, " ");
+        
+        // If we're being told to change directory then we don't need to run in a new process
+        if(strncmp(token, "cd", 2) == 0)
+        {
+            token = strtok (NULL, " ");                
+            if(changeDir(token) != 0)
+            {
+                fprintf(stderr, "Could not change directory to: %s", token);
+            }
+        }
+        else
+        {
+            // Create a child process
+            pid = fork();
+            switch(pid)
+            {
+                // Forking returned an error
+                case -1:
+                    fprintf(stderr, "Fork failed");
+                    break;
+                // Child process
+                case 0:
+                    if(call_system(input) == 1)
+                        fprintf(stderr, "System Call failed");
+                    break;
+                // Parent process checks if the child is being run in the background or not
+                default:
+                    if(background == 0)
+                        waitpid(-1, NULL, 0);
+                    break;
+            }
+        }
+    }
 }
 
 // Small function used to change directories
@@ -133,7 +155,7 @@ int call_system(char *input)
     
     // While more strings, increase the side of result and add the string
     while (ptr) 
-    {        
+    {
         argArray = realloc (argArray, sizeof (char*) * args);
 
         // If null then alloc failed
@@ -142,7 +164,8 @@ int call_system(char *input)
             
        // If the first character is a " remove it
        if(ptr[0] == 34)
-       {           
+       {         
+           fprintf(stdout, "REMOVING OPENING QUOTE\n");
             catToken = 1;
             length = strlen(ptr);
 
@@ -155,6 +178,7 @@ int call_system(char *input)
             // Check the ends for quotes, making sure not to remove them if they are escaped
             if( tempToken[strlen(tempToken)-1] == 34 && tempToken[strlen(tempToken)-2] != 93 )
             {
+                fprintf(stdout, "REMOVING CLOSING QUOTE\n");
                 tempToken[strlen(tempToken)-1] = '\0';
                 catToken = 0;
             }
@@ -176,6 +200,7 @@ int call_system(char *input)
        {
            escapeCheck = malloc(sizeof(char) * strlen(tempToken));
            strcpy(escapeCheck, tempToken);
+           tempToken = NULL;
        }
        else
        {
@@ -231,57 +256,3 @@ int call_system(char *input)
     
     return 0;
 }
-
-/**char* removeQuotes(char* input, int* catToken, char **tempToken)
-{
-    char* string = malloc(sizeof(char) * strlen(input));
-    strcpy(string, input);
-    char* result;
-    int i;
-    
-    // 34 is the ascii for "
-    if(string[0] == 34)
-    {            
-        *catToken = 1;
-        
-        length = strlen(string);
-        
-        result = malloc(sizeof(char) * length);
-        // Removes the " from the start of the string
-        for(i = 1; i < length; i++)
-        {
-            result[i-1] = string[i];
-        }
-        
-        length = strlen(result);
-        
-        // If " is the last character as well then this is simply a full command
-        if(result[length-1] == 34)
-        {
-            result[length-1] = '\0';
-        }
-    }
-    else if(*catToken == 1)
-    {
-        length = strlen(string);
-        // If the last character is " then this is the end of the string
-        if(string[length-1] == 34)
-        {
-            string[length-1] = '\0';
-            strcat(result, " ");
-            strcat(result, string);
-            
-            *catToken = 0;
-        }
-        else
-        {
-            strcat(result, " ");
-            strcat(result, string);          
-        }                      
-    }
-    
-    *tempToken = malloc(sizeof(char) * strlen(result));
-    
-    free(string);
-    return result;
-}*/
