@@ -247,7 +247,7 @@ int call_system(char *input)
     argArray = realloc (argArray, sizeof (char*) * (args+1));
     argArray[args] = '\0';    
         
-    execvp(command, argArray);
+    fputs(execvp(command, argArray), stdout);
         
     // Free up memory
     free(result);
