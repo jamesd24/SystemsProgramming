@@ -1,0 +1,8 @@
+all: clean sync
+
+sync: sync.c sync.h
+	clang -std=gnu99 -Wall sync.c -o sync -lpthread
+
+clean:
+	rm -f sync
+	rm -f sync.o

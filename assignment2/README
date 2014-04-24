@@ -1,0 +1,2 @@
+Milestone 1:
+	You can just wait for the buffer value to change at this point to see when the child has finished working, later since the child needs to do more after the printing you will need to wait for the child to then end.
