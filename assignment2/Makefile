@@ -5,4 +5,3 @@ sync: sync.c sync.h
 
 clean:
 	rm -f sync
-	rm -f sync.o

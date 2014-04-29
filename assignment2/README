@@ -1,2 +1,5 @@
 Milestone 1:
 	You can just wait for the buffer value to change at this point to see when the child has finished working, later since the child needs to do more after the printing you will need to wait for the child to then end.
+
+I didn't use a mutex for the final end call, instead I simply used a variable that had its value changed.
+I used this more simple method rather than the more robus mutex because the value will only be changed once and not multiple times, therefore you are safe to have a wait on it as there will not be a deadlock scenario at any point due to only the parent thread ever waiting on the value change, and only the child thread ever being the thread to change the value

@@ -9,9 +9,10 @@
 
 typedef struct child_args 
 {
-    char* buffer;
+    int test;    
     pthread_mutex_t readLock;
     pthread_mutex_t endLock;
+    char* buffer;
 } chargs;
 
 
@@ -19,8 +20,10 @@ int main()
 {
     chargs cargs;    
     pthread_t child;
+    cargs.buffer = malloc(bufferSize);
     pthread_mutex_init(&cargs.readLock, NULL);
     pthread_mutex_init(&cargs.endLock, NULL);
+    cargs.test = 0;
     
     pthread_mutex_lock(&cargs.readLock);
     
@@ -35,8 +38,13 @@ int main()
     pthread_mutex_lock(&cargs.readLock);
     fprintf(stdout, "The string you gave the child was: %s", cargs.buffer);
     
-    pthread_mutex_unlock(&cargs.endLock);
-          
+    pthread_mutex_unlock(&cargs.endLock);          
+    
+    while(cargs.test == 0)
+    {
+    }
+    
+    fprintf(stdout, "Child exiting\n");
     
     void* end;
     if(pthread_join(child, &end))
@@ -46,12 +54,13 @@ int main()
     pthread_mutex_destroy(&cargs.readLock);
     pthread_mutex_destroy(&cargs.endLock);
     
-    exit(0);
+    //exit(0);
+    return 0;
 }
 
 void *readLine(void* ptr)
 {
-    chargs* args = malloc(sizeof(chargs));
+    chargs* args;
     args = (chargs*) ptr;
     
     pthread_mutex_lock(&args->readLock);
@@ -68,6 +77,8 @@ void *readLine(void* ptr)
     while( (c = fgetc(stdin)) != '\n');
     {        
     }
+    args->test = 1;
+    sleep(1);
     pthread_mutex_unlock(&args->endLock);
     pthread_exit((void*)NULL);
 }
